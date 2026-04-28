@@ -1,0 +1,24 @@
+// Zion Shop — Prisma schema
+// Phase 0: scaffolding only. Models will be filled in during Phase 1 (Week 2).
+// See ZION_SHOP_PROJECT_PLAN.md § 4 for the full schema design.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 0 sanity model — proves the connection works.
+// Will be deleted (or kept and repurposed) when Phase 1 schema lands.
+// ─────────────────────────────────────────────────────────────────────────
+
+model HealthCheck {
+  id        String   @id @default(cuid())
+  message   String   @default("Zion Shop DB is alive")
+  createdAt DateTime @default(now())
+}
