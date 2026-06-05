@@ -1,9 +1,9 @@
 import { SiteHeader } from "@/components/shop/site-header";
 import { SiteFooter } from "@/components/shop/site-footer";
+import { CartDrawer } from "@/components/shop/cart-drawer";
 
 /**
- * Public store layout — wraps all customer-facing pages with the shared
- * header (nav + search + account/cart) and footer.
+ * Public store layout — shared header + footer, plus the global cart drawer.
  */
 export default function ShopLayout({
   children,
@@ -15,6 +15,7 @@ export default function ShopLayout({
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      <CartDrawer />
     </div>
   );
 }

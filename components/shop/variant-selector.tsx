@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Heart, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
+import { useCart } from "@/lib/stores/cart";
 import { colorToHex, isLightColor } from "@/lib/colors";
 import { cn, formatBDT } from "@/lib/utils";
 
@@ -16,12 +17,16 @@ type Variant = {
 const SIZE_ORDER: Record<string, number> = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 };
 
 export function VariantSelector({
+  product,
   variants,
   basePrice,
 }: {
+  product: { slug: string; name: string; image: string | null };
   variants: Variant[];
   basePrice: number;
 }) {
+  const add = useCart((s) => s.add);
+
   const colors = useMemo(
     () => [...new Set(variants.map((v) => v.color))],
     [variants]
@@ -48,10 +53,21 @@ export function VariantSelector({
       setMessage("Please choose a size first.");
       return;
     }
-    // Cart + checkout are built in Phase 3. For now, confirm the selection.
-    setMessage(
-      `Selected ${color} / ${size} — cart & checkout arrive in Phase 3.`
-    );
+    if (selected.stock <= 0) {
+      setMessage("Sorry, that option is out of stock.");
+      return;
+    }
+    setMessage(null);
+    add({
+      variantId: selected.id,
+      slug: product.slug,
+      name: product.name,
+      color,
+      size,
+      price,
+      image: product.image,
+      maxStock: selected.stock,
+    });
   }
 
   return (
@@ -124,24 +140,12 @@ export function VariantSelector({
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          onClick={addToCart}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-brand-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-700"
-        >
-          <ShoppingBag size={18} /> Add to Cart
-        </button>
-        <button
-          onClick={() =>
-            setMessage("Wishlist is wired up in Phase 3.")
-          }
-          aria-label="Add to wishlist"
-          className="inline-flex items-center justify-center rounded-md border border-neutral-300 px-4 text-neutral-700 hover:border-neutral-400"
-        >
-          <Heart size={18} />
-        </button>
-      </div>
+      <button
+        onClick={addToCart}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+      >
+        <ShoppingBag size={18} /> Add to Cart
+      </button>
 
       {message && (
         <p className="rounded-md bg-neutral-100 px-4 py-3 text-sm text-neutral-600">

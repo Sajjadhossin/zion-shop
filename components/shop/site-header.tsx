@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Heart, ShoppingBag, User } from "lucide-react";
+import { Heart, User } from "lucide-react";
 import { getNavCategories } from "@/lib/queries/products";
 import { getStoreSettings } from "@/lib/queries/store";
 import { SearchBar } from "./search-bar";
+import { CartButton } from "./cart-button";
 
 export async function SiteHeader() {
   const [cats, store] = await Promise.all([
@@ -41,9 +42,7 @@ export async function SiteHeader() {
           <Link href="/account" aria-label="Account" className="text-neutral-700 hover:text-brand-600">
             <User size={20} />
           </Link>
-          <Link href="/cart" aria-label="Cart" className="text-neutral-700 hover:text-brand-600">
-            <ShoppingBag size={20} />
-          </Link>
+          <CartButton />
         </div>
       </div>
 

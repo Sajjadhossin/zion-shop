@@ -5,8 +5,11 @@ import {
   getProductBySlug,
   getRelatedProducts,
 } from "@/lib/queries/products";
+import { isWishlisted } from "@/lib/queries/wishlist";
+import { createClient } from "@/lib/supabase/server";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { VariantSelector } from "@/components/shop/variant-selector";
+import { WishlistButton } from "@/components/shop/wishlist-button";
 import { StarRating } from "@/components/shop/star-rating";
 import { ProductGrid } from "@/components/shop/product-grid";
 
@@ -29,7 +32,14 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product.categorySlug, product.slug, 4);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [related, wishlisted] = await Promise.all([
+    getRelatedProducts(product.categorySlug, product.slug, 4),
+    user ? isWishlisted(user.id, product.id) : Promise.resolve(false),
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -65,9 +75,18 @@ export default async function ProductPage({
 
           <div className="mt-6">
             <VariantSelector
+              product={{
+                slug: product.slug,
+                name: product.name,
+                image: product.images[0]?.url ?? null,
+              }}
               variants={product.variants}
               basePrice={product.basePrice}
             />
+          </div>
+
+          <div className="mt-3">
+            <WishlistButton productId={product.id} initial={wishlisted} />
           </div>
         </div>
       </div>
