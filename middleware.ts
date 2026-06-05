@@ -1,13 +1,12 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
 /**
- * Edge middleware.
- *
- * Phase 0: pass-through. Phase 1 will add Supabase session refresh + protected
- * route guards (block unauthenticated access to /account/* and /admin/*).
+ * Edge middleware: refresh Supabase session + guard protected routes.
+ * See lib/supabase/middleware.ts for the logic.
  */
-export async function middleware(_request: NextRequest) {
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  return updateSession(request);
 }
 
 export const config = {

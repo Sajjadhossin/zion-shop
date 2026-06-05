@@ -49,7 +49,7 @@ export function createAdminClient() {
         getAll() {
           return [];
         },
-        setAll(_cookiesToSet: CookieToSet[]) {
+        setAll() {
           /* no-op: admin client has no session */
         },
       },
