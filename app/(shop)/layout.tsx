@@ -1,15 +1,20 @@
+import { SiteHeader } from "@/components/shop/site-header";
+import { SiteFooter } from "@/components/shop/site-footer";
+
 /**
- * Public store layout.
- *
- * All public-facing customer pages live in this route group:
- *   /, /products, /product/[slug], /cart, /checkout, /wishlist, /search, etc.
- *
- * Header + footer will be added in Phase 2.
+ * Public store layout — wraps all customer-facing pages with the shared
+ * header (nav + search + account/cart) and footer.
  */
 export default function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-screen flex-col">
+      <SiteHeader />
+      <main className="flex-1">{children}</main>
+      <SiteFooter />
+    </div>
+  );
 }
