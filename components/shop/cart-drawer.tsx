@@ -108,9 +108,16 @@ export function CartDrawer() {
               <span className="text-lg font-semibold">{formatBDT(subtotal)}</span>
             </div>
             <Link
+              href="/checkout"
+              onClick={close}
+              className="mt-4 flex w-full items-center justify-center rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Checkout
+            </Link>
+            <Link
               href="/cart"
               onClick={close}
-              className="mt-4 flex w-full items-center justify-center rounded-md border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:border-neutral-400"
+              className="mt-2 flex w-full items-center justify-center rounded-md border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:border-neutral-400"
             >
               View full cart
             </Link>

@@ -10,7 +10,6 @@ import { formatBDT } from "@/lib/utils";
 export default function CartPage() {
   const { items, setQty, remove } = useCart();
   const [mounted, setMounted] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   useEffect(() => setMounted(true), []);
 
   const subtotal = cartSubtotal(items);
@@ -86,13 +85,12 @@ export default function CartPage() {
               <span>Total</span>
               <span>{formatBDT(subtotal)}</span>
             </div>
-            <button
-              onClick={() => setNote("Checkout & payments arrive in Phase 4.")}
-              className="mt-6 w-full rounded-md bg-brand-600 px-5 py-3 text-sm font-medium text-white hover:bg-brand-700"
+            <Link
+              href="/checkout"
+              className="mt-6 block w-full rounded-md bg-brand-600 px-5 py-3 text-center text-sm font-medium text-white hover:bg-brand-700"
             >
               Proceed to checkout
-            </button>
-            {note && <p className="mt-3 text-center text-xs text-neutral-500">{note}</p>}
+            </Link>
           </aside>
         </div>
       )}

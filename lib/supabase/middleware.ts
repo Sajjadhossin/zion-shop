@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Paths that require an authenticated user. */
-const PROTECTED = ["/account", "/admin"];
+const PROTECTED = ["/account", "/admin", "/checkout", "/order"];
 /** Auth pages a logged-in user should be bounced away from. */
 const AUTH_PAGES = ["/login", "/signup"];
 
