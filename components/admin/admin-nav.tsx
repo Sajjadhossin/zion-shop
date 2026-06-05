@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   Users,
   Settings,
+  Star,
   Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const LINKS = [
   { href: "/admin/categories", label: "Categories", icon: FolderTree },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/customers", label: "Customers", icon: Users },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/coupons", label: "Coupons", icon: Tag },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

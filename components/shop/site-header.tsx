@@ -4,6 +4,7 @@ import { getNavCategories } from "@/lib/queries/products";
 import { getStoreSettings } from "@/lib/queries/store";
 import { SearchBar } from "./search-bar";
 import { CartButton } from "./cart-button";
+import { MobileMenu } from "./mobile-menu";
 
 export async function SiteHeader() {
   const [cats, store] = await Promise.all([
@@ -13,7 +14,8 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
+      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:gap-6">
+        <MobileMenu categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
         <Link href="/" className="shrink-0 text-xl font-semibold tracking-tight">
           {store.storeName}
         </Link>

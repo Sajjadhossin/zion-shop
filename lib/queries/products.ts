@@ -258,3 +258,11 @@ export function parseFilters(
     page: num("page"),
   };
 }
+
+export async function getUserReview(userId: string, productId: string) {
+  const r = await prisma.review.findUnique({
+    where: { productId_userId: { productId, userId } },
+    select: { rating: true, comment: true },
+  });
+  return r ? { rating: r.rating, comment: r.comment ?? "" } : null;
+}

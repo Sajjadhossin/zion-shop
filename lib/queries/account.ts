@@ -32,3 +32,18 @@ export async function getAccountCounts(userId: string) {
   ]);
   return { orders, wishlist, addresses };
 }
+
+export async function getUserReviewsForProducts(
+  userId: string,
+  productIds: string[]
+) {
+  if (productIds.length === 0)
+    return new Map<string, { rating: number; comment: string }>();
+  const rows = await prisma.review.findMany({
+    where: { userId, productId: { in: productIds } },
+    select: { productId: true, rating: true, comment: true },
+  });
+  return new Map(
+    rows.map((r) => [r.productId, { rating: r.rating, comment: r.comment ?? "" }])
+  );
+}

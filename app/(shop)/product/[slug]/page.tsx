@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/server";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { VariantSelector } from "@/components/shop/variant-selector";
 import { WishlistButton } from "@/components/shop/wishlist-button";
-import { StarRating } from "@/components/shop/star-rating";
 import { ProductGrid } from "@/components/shop/product-grid";
 
 export async function generateMetadata({
@@ -69,9 +68,6 @@ export default async function ProductPage({
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {product.name}
           </h1>
-          <div className="mt-3">
-            <StarRating value={product.rating} count={product.reviewCount} />
-          </div>
 
           <div className="mt-6">
             <VariantSelector
@@ -97,32 +93,6 @@ export default async function ProductPage({
         <p className="mt-3 whitespace-pre-line leading-relaxed text-neutral-600">
           {product.description}
         </p>
-      </section>
-
-      {/* Reviews */}
-      <section className="mt-12 max-w-3xl">
-        <h2 className="text-lg font-semibold">
-          Reviews ({product.reviewCount})
-        </h2>
-        {product.reviews.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-500">
-            No reviews yet. Be the first to review this product.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-6">
-            {product.reviews.map((r) => (
-              <li key={r.id} className="border-b border-neutral-100 pb-6">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{r.author}</span>
-                  <StarRating value={r.rating} size={14} />
-                </div>
-                {r.comment && (
-                  <p className="mt-2 text-sm text-neutral-600">{r.comment}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       {/* Shipping */}

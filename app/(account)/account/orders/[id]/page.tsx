@@ -3,8 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getOrderForUser } from "@/lib/queries/orders";
+import { getUserReviewsForProducts } from "@/lib/queries/account";
 import { StatusBadge } from "@/components/account/status-badge";
 import { ProductImage } from "@/components/shop/product-image";
+import { ReviewDisclosure } from "@/components/account/review-disclosure";
 import { cn, formatBDT } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order Detail" };
@@ -27,7 +29,15 @@ export default async function OrderDetailPage({
   if (!order) notFound();
 
   const cancelled = order.orderStatus === "CANCELLED";
+  const delivered = order.orderStatus === "DELIVERED";
   const currentIdx = FLOW.indexOf(order.orderStatus);
+
+  const reviews = delivered
+    ? await getUserReviewsForProducts(
+        user.id,
+        order.items.map((it) => it.productId)
+      )
+    : new Map<string, { rating: number; comment: string }>();
 
   return (
     <div>
@@ -86,24 +96,43 @@ export default async function OrderDetailPage({
         </div>
       )}
 
+      {delivered && (
+        <p className="mt-8 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+          Your order was delivered — you can now review what you bought below.
+        </p>
+      )}
+
       {/* Items */}
-      <ul className="mt-8 divide-y divide-neutral-100 rounded-xl border border-neutral-200 px-5">
-        {order.items.map((it) => (
-          <li key={it.id} className="flex gap-3 py-4">
-            <div className="h-16 w-14 shrink-0 overflow-hidden rounded-md bg-neutral-100">
-              <ProductImage src={it.image} alt={it.name} label={it.name} className="h-full w-full" />
-            </div>
-            <div className="flex-1 text-sm">
-              <Link href={`/product/${it.slug}`} className="font-medium hover:text-brand-600">
-                {it.name}
-              </Link>
-              <p className="text-neutral-500">
-                {it.color} / {it.size} · Qty {it.quantity}
-              </p>
-            </div>
-            <p className="text-sm font-semibold">{formatBDT(it.price * it.quantity)}</p>
-          </li>
-        ))}
+      <ul className="mt-4 divide-y divide-neutral-100 rounded-xl border border-neutral-200 px-5">
+        {order.items.map((it) => {
+          const r = reviews.get(it.productId);
+          return (
+            <li key={it.id} className="py-4">
+              <div className="flex gap-3">
+                <div className="h-16 w-14 shrink-0 overflow-hidden rounded-md bg-neutral-100">
+                  <ProductImage src={it.image} alt={it.name} label={it.name} className="h-full w-full" />
+                </div>
+                <div className="flex-1 text-sm">
+                  <Link href={`/product/${it.slug}`} className="font-medium hover:text-brand-600">
+                    {it.name}
+                  </Link>
+                  <p className="text-neutral-500">
+                    {it.color} / {it.size} · Qty {it.quantity}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold">{formatBDT(it.price * it.quantity)}</p>
+              </div>
+              {delivered && (
+                <ReviewDisclosure
+                  productId={it.productId}
+                  reviewed={!!r}
+                  rating={r?.rating ?? 0}
+                  comment={r?.comment ?? ""}
+                />
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       <div className="mt-6 grid gap-6 sm:grid-cols-2">

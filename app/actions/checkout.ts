@@ -1,6 +1,7 @@
 "use server";
 
-import type { PaymentMethod, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { PaymentMethod } from "@prisma/client";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { shippingFee } from "@/lib/shipping";
@@ -139,57 +140,75 @@ export async function placeOrder(
   }
 
   const total = Math.max(0, subtotal + fee - discount);
-  const orderNumber = await nextOrderNumber();
   const method = data.paymentMethod as PaymentMethod;
 
-  // Build the order (with line items + payment) plus the stock/coupon updates,
-  // then run them as a single BATCH transaction. The interactive form
-  // ($transaction(async (tx) => ...)) breaks over Supabase's pgbouncer pool
-  // ("Transaction not found"), so we send one atomic batch instead.
-  const orderCreate = prisma.order.create({
-    data: {
-      userId: user.id,
-      orderNumber,
-      subtotal,
-      shippingFee: fee,
-      discount,
-      total,
-      paymentMethod: method,
-      paymentStatus: "PENDING",
-      orderStatus: "PLACED",
-      shippingAddressId: address.id,
-      couponId,
-      items: {
-        create: lineItems.map((li) => ({
-          productVariantId: li.variantId,
-          quantity: li.quantity,
-          priceAtPurchase: li.price,
-        })),
-      },
-      payment: { create: { method, amount: total, status: "PENDING" } },
-    },
-  });
-
-  const ops: Prisma.PrismaPromise<unknown>[] = [
-    orderCreate,
-    ...lineItems.map((li) =>
-      prisma.productVariant.update({
-        where: { id: li.variantId },
-        data: { stock: { decrement: li.quantity } },
-      })
-    ),
-  ];
-  if (couponId) {
-    ops.push(
-      prisma.coupon.update({
+  // Stock decrements use updateMany with a `stock >= quantity` guard so a
+  // variant can never go negative under concurrent checkouts.
+  const stockOps = lineItems.map((li) =>
+    prisma.productVariant.updateMany({
+      where: { id: li.variantId, stock: { gte: li.quantity } },
+      data: { stock: { decrement: li.quantity } },
+    })
+  );
+  const couponOp = couponId
+    ? prisma.coupon.update({
         where: { id: couponId },
         data: { usedCount: { increment: 1 } },
       })
-    );
-  }
+    : null;
 
-  const results = await prisma.$transaction(ops);
-  const order = results[0] as { id: string };
+  // Create the order + line items + payment, decrement stock, and bump the
+  // coupon as ONE atomic batch (interactive transactions break over Supabase's
+  // pgbouncer pool). The human-friendly orderNumber is derived from a count, so
+  // retry the rare collision when two orders are placed at the same instant.
+  let order: { id: string } | null = null;
+  let orderNumber = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    orderNumber = await nextOrderNumber();
+    const orderCreate = prisma.order.create({
+      data: {
+        userId: user.id,
+        orderNumber,
+        subtotal,
+        shippingFee: fee,
+        discount,
+        total,
+        paymentMethod: method,
+        paymentStatus: "PENDING",
+        orderStatus: "PLACED",
+        shippingAddressId: address.id,
+        couponId,
+        items: {
+          create: lineItems.map((li) => ({
+            productVariantId: li.variantId,
+            quantity: li.quantity,
+            priceAtPurchase: li.price,
+          })),
+        },
+        payment: { create: { method, amount: total, status: "PENDING" } },
+      },
+    });
+    const ops: Prisma.PrismaPromise<unknown>[] = [orderCreate, ...stockOps];
+    if (couponOp) ops.push(couponOp);
+
+    try {
+      const results = await prisma.$transaction(ops);
+      order = results[0] as { id: string };
+      break;
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        attempt < 4
+      ) {
+        continue; // duplicate orderNumber — regenerate and retry
+      }
+      throw e;
+    }
+  }
+  if (!order) {
+    return { ok: false, error: "Could not place your order. Please try again." };
+  }
 
   // Confirmation email — best effort, never blocks the order.
   await sendOrderConfirmation(user.email ?? "", {

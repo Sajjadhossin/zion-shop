@@ -343,3 +343,24 @@ export async function getAdminAnalytics() {
     topProducts,
   };
 }
+
+// ───────────────────────── Reviews ─────────────────────────
+
+export async function getAdminReviews() {
+  const rows = await prisma.review.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      product: { select: { name: true, slug: true } },
+      user: { select: { name: true, email: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    comment: r.comment,
+    date: r.createdAt.toISOString(),
+    productName: r.product.name,
+    productSlug: r.product.slug,
+    customer: r.user.name ?? r.user.email,
+  }));
+}

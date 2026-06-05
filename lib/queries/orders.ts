@@ -40,6 +40,7 @@ export async function getOrderForUser(userId: string, orderId: string) {
     address: order.shippingAddress,
     items: order.items.map((it) => ({
       id: it.id,
+      productId: it.variant.productId,
       name: it.variant.product.name,
       slug: it.variant.product.slug,
       image: it.variant.product.images[0]?.url ?? null,
