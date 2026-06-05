@@ -1,6 +1,9 @@
-// Zion Shop — Prisma schema
-// Phase 0: scaffolding only. Models will be filled in during Phase 1 (Week 2).
-// See ZION_SHOP_PROJECT_PLAN.md § 4 for the full schema design.
+// Zion Shop -- Prisma schema
+// Phase 1 (Week 2): full data model. See ZION_SHOP_PROJECT_PLAN.md section 4.
+//
+// Auth note: passwords are managed by Supabase Auth (auth.users table).
+// This `User` model mirrors the auth user -- its `id` must equal the Supabase
+// auth UID (uuid). We never store password hashes in the app database.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,13 +15,320 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Phase 0 sanity model — proves the connection works.
-// Will be deleted (or kept and repurposed) when Phase 1 schema lands.
-// ─────────────────────────────────────────────────────────────────────────
+// =====================  Enums  =====================
 
-model HealthCheck {
-  id        String   @id @default(cuid())
-  message   String   @default("Zion Shop DB is alive")
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum Gender {
+  MEN
+  WOMEN
+  UNISEX
+}
+
+enum Size {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+}
+
+enum PaymentMethod {
+  BKASH
+  SSLCOMMERZ
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+// =====================  Users & addresses  =====================
+
+model User {
+  id        String   @id // Supabase auth UID (uuid)
+  email     String   @unique
+  name      String?
+  phone     String?
+  role      Role     @default(CUSTOMER)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+  reviews   Review[]
+  wishlist  Wishlist[]
+  cart      Cart?
+
+  @@index([email])
+}
+
+model Address {
+  id          String  @id @default(cuid())
+  userId      String
+  fullName    String
+  phone       String
+  addressLine String
+  city        String
+  district    String
+  postalCode  String?
+  isDefault   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingOrders Order[] @relation("OrderShippingAddress")
+
+  @@index([userId])
+}
+
+// =====================  Catalog  =====================
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  parentId String?
+  gender   Gender?
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String  @db.Text
+  basePrice   Decimal @db.Decimal(10, 2)
+  gender      Gender
+  categoryId  String
+  brand       String?
+  isActive    Boolean @default(true)
+  isFeatured  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category Category         @relation(fields: [categoryId], references: [id])
+  variants ProductVariant[]
+  images   ProductImage[]
+  reviews  Review[]
+  wishlist Wishlist[]
+
+  @@index([categoryId])
+  @@index([gender])
+  @@index([isActive])
+  @@index([isFeatured])
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  size      Size
+  color     String
+  sku       String   @unique
+  stock     Int      @default(0)
+  price     Decimal? @db.Decimal(10, 2) // overrides product.basePrice when set
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, size, color])
+  @@index([productId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String // Cloudinary URL
+  order     Int     @default(0)
+  alt       String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// =====================  Reviews & wishlist  =====================
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int // 1-5
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId]) // one review per user per product
+  @@index([productId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// =====================  Cart  =====================
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id               String @id @default(cuid())
+  cartId           String
+  productVariantId String
+  quantity         Int    @default(1)
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productVariantId])
+  @@index([cartId])
+}
+
+// =====================  Orders & payments  =====================
+
+model Order {
+  id          String  @id @default(cuid())
+  userId      String
+  orderNumber String  @unique // e.g. ZION-001234
+  subtotal    Decimal @db.Decimal(10, 2)
+  shippingFee Decimal @default(0) @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+  orderStatus   OrderStatus   @default(PLACED)
+
+  shippingAddressId String
+  couponId          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User        @relation(fields: [userId], references: [id])
+  shippingAddress Address     @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id])
+  coupon          Coupon?     @relation(fields: [couponId], references: [id])
+  items           OrderItem[]
+  payment         Payment?
+
+  @@index([userId])
+  @@index([orderStatus])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id               String  @id @default(cuid())
+  orderId          String
+  productVariantId String
+  quantity         Int
+  priceAtPurchase  Decimal @db.Decimal(10, 2)
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@index([orderId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  method          PaymentMethod
+  transactionId   String?
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  gatewayResponse Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// =====================  Coupons  =====================
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  discountType   DiscountType
+  discountValue  Decimal      @db.Decimal(10, 2)
+  minOrderAmount Decimal?     @db.Decimal(10, 2)
+  maxDiscount    Decimal?     @db.Decimal(10, 2)
+  usageLimit     Int?
+  usedCount      Int          @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+}
+
+// =====================  Store settings (white-label branding)  =====================
+
+model StoreSettings {
+  id             String   @id @default(cuid())
+  storeName      String   @default("Zion Shop")
+  logoUrl        String?
+  primaryColor   String?
+  secondaryColor String?
+  contactEmail   String?
+  contactPhone   String?
+  address        String?
+  facebookUrl    String?
+  instagramUrl   String?
+  whatsappNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
