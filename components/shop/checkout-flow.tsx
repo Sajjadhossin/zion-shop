@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { cartSubtotal, useCart } from "@/lib/stores/cart";
 import { applyCoupon, placeOrder } from "@/app/actions/checkout";
 import { DISTRICTS, shippingFee } from "@/lib/shipping";
@@ -64,6 +64,7 @@ export function CheckoutFlow({ addresses }: { addresses: Address[] }) {
   const [method, setMethod] = useState<"COD">("COD");
   const [placing, startPlacing] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const subtotal = mounted ? cartSubtotal(items) : 0;
 
@@ -117,6 +118,7 @@ export function CheckoutFlow({ addresses }: { addresses: Address[] }) {
         paymentMethod: method,
       });
       if (res.ok) {
+        setSubmitted(true);
         clear();
         router.push(`/order/${res.orderId}/success`);
       } else {
@@ -126,6 +128,27 @@ export function CheckoutFlow({ addresses }: { addresses: Address[] }) {
   }
 
   if (!mounted) return <div className="mx-auto max-w-5xl px-4 py-16" />;
+
+  if (submitted || placing) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-28 text-center">
+        <div className="relative flex h-16 w-16 items-center justify-center">
+          <span className="absolute inset-0 animate-ping rounded-full bg-brand-100" />
+          <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+            <Loader2 className="animate-spin text-brand-600" size={28} />
+          </span>
+        </div>
+        <h2 className="mt-6 text-xl font-semibold tracking-tight">
+          Placing your order…
+        </h2>
+        <p className="mt-2 text-sm text-neutral-500">
+          Hang tight — we’re confirming your items and creating your order.
+          This only takes a moment.
+        </p>
+        <p className="mt-4 text-xs text-neutral-400">Please don’t close this tab.</p>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
