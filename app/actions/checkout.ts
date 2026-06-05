@@ -1,6 +1,6 @@
 "use server";
 
-import type { PaymentMethod } from "@prisma/client";
+import type { PaymentMethod, Prisma } from "@prisma/client";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { shippingFee } from "@/lib/shipping";
@@ -142,45 +142,54 @@ export async function placeOrder(
   const orderNumber = await nextOrderNumber();
   const method = data.paymentMethod as PaymentMethod;
 
-  const order = await prisma.$transaction(async (tx) => {
-    const created = await tx.order.create({
-      data: {
-        userId: user.id,
-        orderNumber,
-        subtotal,
-        shippingFee: fee,
-        discount,
-        total,
-        paymentMethod: method,
-        paymentStatus: "PENDING",
-        orderStatus: "PLACED",
-        shippingAddressId: address.id,
-        couponId,
-        items: {
-          create: lineItems.map((li) => ({
-            productVariantId: li.variantId,
-            quantity: li.quantity,
-            priceAtPurchase: li.price,
-          })),
-        },
-        payment: { create: { method, amount: total, status: "PENDING" } },
+  // Build the order (with line items + payment) plus the stock/coupon updates,
+  // then run them as a single BATCH transaction. The interactive form
+  // ($transaction(async (tx) => ...)) breaks over Supabase's pgbouncer pool
+  // ("Transaction not found"), so we send one atomic batch instead.
+  const orderCreate = prisma.order.create({
+    data: {
+      userId: user.id,
+      orderNumber,
+      subtotal,
+      shippingFee: fee,
+      discount,
+      total,
+      paymentMethod: method,
+      paymentStatus: "PENDING",
+      orderStatus: "PLACED",
+      shippingAddressId: address.id,
+      couponId,
+      items: {
+        create: lineItems.map((li) => ({
+          productVariantId: li.variantId,
+          quantity: li.quantity,
+          priceAtPurchase: li.price,
+        })),
       },
-    });
+      payment: { create: { method, amount: total, status: "PENDING" } },
+    },
+  });
 
-    for (const li of lineItems) {
-      await tx.productVariant.update({
+  const ops: Prisma.PrismaPromise<unknown>[] = [
+    orderCreate,
+    ...lineItems.map((li) =>
+      prisma.productVariant.update({
         where: { id: li.variantId },
         data: { stock: { decrement: li.quantity } },
-      });
-    }
-    if (couponId) {
-      await tx.coupon.update({
+      })
+    ),
+  ];
+  if (couponId) {
+    ops.push(
+      prisma.coupon.update({
         where: { id: couponId },
         data: { usedCount: { increment: 1 } },
-      });
-    }
-    return created;
-  });
+      })
+    );
+  }
+
+  const results = await prisma.$transaction(ops);
+  const order = results[0] as { id: string };
 
   // Confirmation email — best effort, never blocks the order.
   await sendOrderConfirmation(user.email ?? "", {

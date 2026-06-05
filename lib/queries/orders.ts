@@ -56,3 +56,21 @@ export async function nextOrderNumber(): Promise<string> {
   const count = await prisma.order.count();
   return `ZION-${String(count + 1).padStart(6, "0")}`;
 }
+
+export async function getUserOrders(userId: string) {
+  const orders = await prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { items: true } } },
+  });
+  return orders.map((o) => ({
+    id: o.id,
+    orderNumber: o.orderNumber,
+    total: Number(o.total),
+    orderStatus: o.orderStatus,
+    paymentStatus: o.paymentStatus,
+    paymentMethod: o.paymentMethod,
+    itemCount: o._count.items,
+    createdAt: o.createdAt.toISOString(),
+  }));
+}
