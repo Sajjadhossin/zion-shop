@@ -7,6 +7,8 @@ export async function getStoreSettings() {
   return {
     storeName: s?.storeName ?? "Zion Shop",
     logoUrl: s?.logoUrl ?? null,
+    primaryColor: s?.primaryColor ?? null,
+    secondaryColor: s?.secondaryColor ?? null,
     contactEmail: s?.contactEmail ?? "hello@zionshop.com",
     contactPhone: s?.contactPhone ?? null,
     facebookUrl: s?.facebookUrl ?? null,
