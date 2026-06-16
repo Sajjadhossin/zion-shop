@@ -1,6 +1,8 @@
 "use client";
 
+import { useId } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { X } from "lucide-react";
 import { colorToHex, isLightColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +21,10 @@ export function FilterSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
+  // Unique per instance: Catalog renders this sidebar twice (desktop + mobile
+  // drawer). Without a unique name, both share one native radio group and the
+  // browser unchecks whichever renders first.
+  const uid = useId();
 
   function push(params: URLSearchParams) {
     params.delete("page");
@@ -46,12 +52,22 @@ export function FilterSidebar({
   const colors = new Set((sp.get("colors")?.split(",") ?? []).filter(Boolean));
   const FILTER_KEYS = ["gender", "sizes", "colors", "minPrice", "maxPrice"];
   const hasFilters = FILTER_KEYS.some((k) => sp.get(k));
+  const activeCount =
+    (gender ? 1 : 0) +
+    sizes.size +
+    colors.size +
+    (sp.get("minPrice") || sp.get("maxPrice") ? 1 : 0);
 
   return (
     <aside className="space-y-7">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-900">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-900">
           Filters
+          {activeCount > 0 && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold leading-none text-white">
+              {activeCount}
+            </span>
+          )}
         </h2>
         {hasFilters && (
           <button
@@ -60,8 +76,9 @@ export function FilterSidebar({
               FILTER_KEYS.forEach((k) => params.delete(k));
               push(params);
             }}
-            className="text-xs text-brand-600 hover:underline"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100"
           >
+            <X size={13} aria-hidden />
             Clear all
           </button>
         )}
@@ -76,7 +93,7 @@ export function FilterSidebar({
             <label key={g.value} className="flex cursor-pointer items-center gap-2 text-sm">
               <input
                 type="radio"
-                name="gender"
+                name={`gender-${uid}`}
                 checked={gender === g.value}
                 onChange={() => setParam("gender", g.value || undefined)}
                 className="accent-brand-600"
