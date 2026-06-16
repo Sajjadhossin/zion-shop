@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
+// Admin pages are auth-gated and read live data — never statically prerender
+// them (avoids build-time DB calls / P2024 pooler timeouts).
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: {

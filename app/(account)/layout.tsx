@@ -4,6 +4,11 @@ import { CartDrawer } from "@/components/shop/cart-drawer";
 import { AccountNav } from "@/components/account/account-nav";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
+// Account pages are per-user (auth + personal data) and must render at request
+// time. Without this, Next tries to statically prerender them at build, which
+// runs DB queries against the Supabase pooler and can time out (P2024).
+export const dynamic = "force-dynamic";
+
 /**
  * Customer dashboard layout — shares the store header/footer and adds the
  * account sidebar. Middleware enforces login for all /account routes.
